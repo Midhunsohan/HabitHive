@@ -1,0 +1,312 @@
+import React, { useState, useEffect } from 'react';
+import { Bell, Calendar, Clock, Moon, Sun, Brain, Target, Battery } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+const StudyTool = () => {
+  // Initialize all state variables
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : false;
+  });
+  
+  const [tasks, setTasks] = useState(() => {
+    const saved = localStorage.getItem('tasks');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  const [newTask, setNewTask] = useState('');
+  const [timer, setTimer] = useState(1500);
+  const [isActive, setIsActive] = useState(false);
+  const [sleepHours, setSleepHours] = useState('');
+  const [sleepData, setSleepData] = useState(() => {
+    const saved = localStorage.getItem('sleepData');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  const [newGoal, setNewGoal] = useState('');
+  const [goals, setGoals] = useState(() => {
+    const saved = localStorage.getItem('goals');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+
+  // Persist state to localStorage
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+    localStorage.setItem('sleepData', JSON.stringify(sleepData));
+    localStorage.setItem('goals', JSON.stringify(goals));
+  }, [darkMode, tasks, sleepData, goals]);
+
+  // Dark mode
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+  }, [darkMode]);
+
+  // Timer logic with sound
+  useEffect(() => {
+    let interval;
+    if (isActive && timer > 0) {
+      interval = setInterval(() => {
+        setTimer((timer) => timer - 1);
+      }, 1000);
+    } else if (timer === 0) {
+      setIsActive(false);
+      showNotification('Time to take a break!');
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fd4uXj0xBQZbZ7pMpGR/n//+iPxEY/////4sZIyCy8Pd3IS4zttDacygrN8Dp8pIoLDnG7/+kLyU61fj/oTsoM8Hard6VNDRc2PL/m0widNL0/6T/');
+      audio.play();
+    }
+    return () => clearInterval(interval);
+  }, [isActive, timer]);
+
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const showNotification = (message) => {
+    setAlertMessage(message);
+    setShowAlert(true);
+    setTimeout(() => setShowAlert(false), 3000);
+  };
+
+  const addTask = () => {
+    if (newTask.trim()) {
+      setTasks(prev => [...prev, {
+        id: Date.now(),
+        text: newTask.trim(),
+        completed: false
+      }]);
+      setNewTask('');
+      showNotification('Task added successfully');
+    }
+  };
+
+  const toggleTaskComplete = (id) => {
+    setTasks(prev => prev.map(task => 
+      task.id === id ? { ...task, completed: !task.completed } : task
+    ));
+  };
+
+  const deleteTask = (id) => {
+    setTasks(prev => prev.filter(task => task.id !== id));
+    showNotification('Task deleted');
+  };
+
+  const analyzeSleep = () => {
+    if (sleepHours >= 0 && sleepHours <= 24) {
+      setSleepData(prev => [...prev, {
+        id: Date.now(),
+        hours: parseFloat(sleepHours),
+        date: new Date().toISOString()
+      }]);
+      showNotification(`Sleep data recorded: ${sleepHours} hours`);
+      setSleepHours('');
+    } else {
+      showNotification('Please enter valid sleep hours (0-24)');
+    }
+  };
+
+  const addGoal = () => {
+    if (newGoal.trim()) {
+      setGoals(prev => [...prev, {
+        id: Date.now(),
+        text: newGoal.trim(),
+        progress: 0
+      }]);
+      setNewGoal('');
+      showNotification('Goal added successfully');
+    }
+  };
+
+  const updateGoalProgress = (id, progress) => {
+    setGoals(prev => prev.map(goal =>
+      goal.id === id ? { ...goal, progress: Math.min(100, Math.max(0, progress)) } : goal
+    ));
+  };
+
+  const toggleTimer = () => {
+    setIsActive(!isActive);
+  };
+
+  const resetTimer = () => {
+    setTimer(1500);
+    setIsActive(false);
+  };
+
+  // Rest of the component remains the same...
+  return (
+    <div className={`min-h-screen p-4 ${darkMode ? 'dark bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Study Smart</h1>
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+          >
+            {darkMode ? <Sun className="h-6 w-6" /> : <Moon className="h-6 w-6" />}
+          </button>
+        </div>
+
+        {/* Alert */}
+        {showAlert && (
+          <Alert className="mb-4">
+            <AlertDescription>{alertMessage}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Task Manager */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 shadow-lg">
+          <div className="flex items-center mb-4">
+            <Calendar className="h-6 w-6 mr-2" />
+            <h2 className="text-xl font-semibold">Task Manager</h2>
+          </div>
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newTask}
+              onChange={(e) => setNewTask(e.target.value)}
+              placeholder="Add new task..."
+              className="flex-1 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder:dark:text-gray-400"
+            />
+            <button
+              onClick={addTask}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Add
+            </button>
+          </div>
+          <ul className="space-y-2">
+            {tasks.map((task) => (
+              <li key={task.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={task.completed}
+                    onChange={() => toggleTaskComplete(task.id)}
+                    className="w-4 h-4"
+                  />
+                  <span className={`${task.completed ? 'line-through' : ''} dark:text-white`}>{task.text}</span>
+                </div>
+                <button
+                  onClick={() => deleteTask(task.id)}
+                  className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Pomodoro Timer */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 shadow-lg">
+          <div className="flex items-center mb-4">
+            <Clock className="h-6 w-6 mr-2" />
+            <h2 className="text-xl font-semibold dark:text-white">Pomodoro Timer</h2>
+          </div>
+          <div className="text-center">
+            <div className="text-4xl font-bold mb-4 dark:text-white">{formatTime(timer)}</div>
+            <div className="space-x-4">
+              <button
+                onClick={toggleTimer}
+                className={`px-6 py-2 rounded text-white ${
+                  isActive ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+                }`}
+              >
+                {isActive ? 'Pause' : 'Start'}
+              </button>
+              <button
+                onClick={resetTimer}
+                className="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Sleep Tracker */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 shadow-lg">
+          <div className="flex items-center mb-4">
+            <Battery className="h-6 w-6 mr-2" />
+            <h2 className="text-xl font-semibold dark:text-white">Sleep Tracker</h2>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={sleepHours}
+              onChange={(e) => setSleepHours(e.target.value)}
+              placeholder="Hours of sleep"
+              className="flex-1 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder:dark:text-gray-400"
+            />
+            <button
+              onClick={analyzeSleep}
+              className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+            >
+              Log Sleep
+            </button>
+          </div>
+          {sleepData.length > 0 && (
+            <div className="mt-4">
+              <h3 className="font-semibold mb-2 dark:text-white">Recent Sleep Log</h3>
+              <ul className="space-y-2">
+                {sleepData.slice(-5).reverse().map((entry) => (
+                  <li key={entry.id} className="bg-gray-50 dark:bg-gray-700 p-2 rounded flex justify-between dark:text-white">
+                    <span>{new Date(entry.date).toLocaleDateString()}</span>
+                    <span>{entry.hours} hours</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Goal Tracker */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
+          <div className="flex items-center mb-4">
+            <Target className="h-6 w-6 mr-2" />
+            <h2 className="text-xl font-semibold dark:text-white">Goal Tracker</h2>
+          </div>
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newGoal}
+              onChange={(e) => setNewGoal(e.target.value)}
+              placeholder="Add new goal..."
+              className="flex-1 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder:dark:text-gray-400"
+            />
+            <button
+              onClick={addGoal}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Add
+            </button>
+          </div>
+          <ul className="space-y-2">
+            {goals.map((goal) => (
+              <li key={goal.id} className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="dark:text-white">{goal.text}</span>
+                  <span className="dark:text-white">{goal.progress}%</span>
+                </div>
+                <input
+                  type="range"
+                  value={goal.progress}
+                  onChange={(e) => updateGoalProgress(goal.id, parseInt(e.target.value))}
+                  className="w-full accent-blue-500 dark:accent-blue-400"
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default StudyTool;
